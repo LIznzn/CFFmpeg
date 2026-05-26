@@ -37,6 +37,8 @@ jobs:
     name: Build Swift Package
     runs-on: macos-15
     timeout-minutes: 360
+    permissions:
+      contents: read
 
     env:
       FFMPEG_VERSION: ${{ github.event.inputs.ffmpeg_version || '8.1.1' }}
@@ -49,7 +51,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+          persist-credentials: false
 
       - name: Show build environment
         run: |
@@ -65,7 +70,7 @@ jobs:
           brew install meson ninja pkg-config yasm nasm
 
       - name: Cache source archives
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/sources
           key: cffmpeg-sources-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.HARFBUZZ_VERSION }}
@@ -99,7 +104,7 @@ jobs:
           } > dist/manifest.txt
 
       - name: Upload Swift package artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: CFFmpeg-${{ env.FFMPEG_VERSION }}-swift-package
           path: dist
