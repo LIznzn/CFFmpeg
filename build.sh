@@ -40,6 +40,9 @@ require_tool xcodebuild
 require_tool xcrun
 require_tool lipo
 require_tool libtool
+require_tool autoconf
+require_tool aclocal
+require_tool glibtoolize
 require_tool pkg-config
 require_tool meson
 require_tool ninja
@@ -72,13 +75,17 @@ download_freetype_source() {
     rm -rf "$source_dir"
   fi
 
-  if [ -d "$source_dir" ]; then
-    return
+  if [ ! -d "$source_dir" ]; then
+    mkdir -p "$SOURCES_DIR"
+    echo "cloning freetype $version"
+    git clone --depth 1 --branch "$tag" "$repo" "$source_dir"
   fi
 
-  mkdir -p "$SOURCES_DIR"
-  echo "cloning freetype $version"
-  git clone --depth 1 --branch "$tag" "$repo" "$source_dir"
+  if [ ! -x "$source_dir/builds/unix/configure" ]; then
+    pushd "$source_dir" >/dev/null
+    ./autogen.sh
+    popd >/dev/null
+  fi
 }
 
 download_sources() {

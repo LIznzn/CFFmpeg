@@ -64,7 +64,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          brew install meson ninja pkg-config yasm nasm
+          brew install autoconf automake libtool meson ninja pkg-config yasm nasm
 
       - name: Cache source archives
         uses: actions/cache@v5
