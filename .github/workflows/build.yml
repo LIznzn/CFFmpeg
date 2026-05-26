@@ -51,11 +51,9 @@ jobs:
 
     steps:
       - name: Checkout
-        run: |
-          git init .
-          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          git fetch --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Show build environment
         run: |
