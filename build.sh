@@ -290,7 +290,6 @@ build_harfbuzz() {
 build_libass() {
   build_meson_project \
     "libass" "$1" "$2" "$3" "$SOURCES_DIR/libass-$LIBASS_VERSION" \
-    -Ddefault_library=static \
     -Dfontconfig=disabled \
     -Dcoretext=enabled \
     -Dtest=disabled \
