@@ -253,7 +253,6 @@ build_harfbuzz() {
     -Dgraphite=disabled \
     -Dgraphite2=disabled \
     -Dfreetype=disabled \
-    -Dfontconfig=disabled \
     -Dcoretext=disabled \
     -Dtests=disabled \
     -Dintrospection=disabled \
