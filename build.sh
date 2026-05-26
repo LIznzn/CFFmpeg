@@ -439,7 +439,7 @@ headers_path() {
   local headers
 
   case "$lib" in
-    libav*)
+    libav*|libsw*)
       source="$INSTALL_DIR/$platform/arm64/include/$lib"
       headers="$WORK_DIR/$platform/headers/$lib"
       rm -rf "$headers"
