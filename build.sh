@@ -33,6 +33,7 @@ require_tool() {
 }
 
 require_tool curl
+require_tool git
 require_tool tar
 require_tool make
 require_tool xcodebuild
@@ -61,10 +62,29 @@ download_source() {
   tar -xJf "$archive" -C "$source_dir" --strip-components=1
 }
 
+download_freetype_source() {
+  local version="$1"
+  local source_dir="$SOURCES_DIR/freetype-$version"
+  local tag="VER-${version//./-}"
+  local repo="https://github.com/freetype/freetype.git"
+
+  if [ -d "$source_dir" ] && [ ! -d "$source_dir/.git" ]; then
+    rm -rf "$source_dir"
+  fi
+
+  if [ -d "$source_dir" ]; then
+    return
+  fi
+
+  mkdir -p "$SOURCES_DIR"
+  echo "cloning freetype $version"
+  git clone --depth 1 --branch "$tag" "$repo" "$source_dir"
+}
+
 download_sources() {
   download_source "ffmpeg" "$FFMPEG_VERSION" "https://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz"
   download_source "libass" "$LIBASS_VERSION" "https://github.com/libass/libass/releases/download/$LIBASS_VERSION/libass-$LIBASS_VERSION.tar.xz"
-  download_source "freetype" "$FREETYPE_VERSION" "https://download.savannah.gnu.org/releases/freetype/freetype-$FREETYPE_VERSION.tar.xz"
+  download_freetype_source "$FREETYPE_VERSION"
   download_source "fribidi" "$FRIBIDI_VERSION" "https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
   download_source "harfbuzz" "$HARFBUZZ_VERSION" "https://github.com/harfbuzz/harfbuzz/releases/download/$HARFBUZZ_VERSION/harfbuzz-$HARFBUZZ_VERSION.tar.xz"
 }
