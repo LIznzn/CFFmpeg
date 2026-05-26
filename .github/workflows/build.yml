@@ -1,0 +1,108 @@
+name: Build CFFmpeg
+
+on:
+  workflow_dispatch:
+    inputs:
+      ffmpeg_version:
+        description: "FFmpeg version"
+        required: false
+        default: "8.1.1"
+      libass_version:
+        description: "libass version"
+        required: false
+        default: "0.17.4"
+      freetype_version:
+        description: "FreeType version"
+        required: false
+        default: "2.14.3"
+      fribidi_version:
+        description: "FriBidi version"
+        required: false
+        default: "1.0.16"
+      harfbuzz_version:
+        description: "HarfBuzz version"
+        required: false
+        default: "14.2.0"
+  push:
+    branches:
+      - "master"
+    tags:
+      - "cffmpeg-*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Swift Package
+    runs-on: macos-15
+    timeout-minutes: 360
+
+    env:
+      FFMPEG_VERSION: ${{ github.event.inputs.ffmpeg_version || '8.1.1' }}
+      LIBASS_VERSION: ${{ github.event.inputs.libass_version || '0.17.4' }}
+      FREETYPE_VERSION: ${{ github.event.inputs.freetype_version || '2.14.3' }}
+      FRIBIDI_VERSION: ${{ github.event.inputs.fribidi_version || '1.0.16' }}
+      HARFBUZZ_VERSION: ${{ github.event.inputs.harfbuzz_version || '14.2.0' }}
+      HOMEBREW_NO_ANALYTICS: "1"
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show build environment
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcode-select -p
+          xcrun --sdk macosx --show-sdk-version
+          xcrun --sdk iphoneos --show-sdk-version
+          xcrun --sdk appletvos --show-sdk-version
+
+      - name: Install build dependencies
+        run: |
+          brew install meson ninja pkg-config yasm nasm
+
+      - name: Cache source archives
+        uses: actions/cache@v4
+        with:
+          path: build/sources
+          key: cffmpeg-sources-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.HARFBUZZ_VERSION }}
+
+      - name: Build XCFrameworks
+        run: |
+          ./build.sh
+
+      - name: Verify products
+        run: |
+          test -f dist/Package.swift
+          test -f dist/Sources/CFFmpeg/src/CFFmpeg.c
+          test -f dist/Frameworks/libavutil.xcframework/macos-arm64_x86_64/Headers/libavutil/ffversion.h
+          grep -q "FFMPEG_VERSION \"${FFMPEG_VERSION}\"" dist/Frameworks/libavutil.xcframework/macos-arm64_x86_64/Headers/libavutil/ffversion.h
+          for library in libavcodec libavfilter libavformat libavutil libswresample libswscale libavdevice; do
+            test -d "dist/Frameworks/${library}.xcframework"
+            plutil -lint "dist/Frameworks/${library}.xcframework/Info.plist"
+          done
+          swift package dump-package --package-path dist >/dev/null
+
+      - name: Create artifact manifest
+        run: |
+          {
+            echo "FFmpeg: ${FFMPEG_VERSION}"
+            echo "libass: ${LIBASS_VERSION}"
+            echo "FreeType: ${FREETYPE_VERSION}"
+            echo "FriBidi: ${FRIBIDI_VERSION}"
+            echo "HarfBuzz: ${HARFBUZZ_VERSION}"
+            echo
+            find dist/Frameworks -name '*.a' -type f -print0 | sort -z | xargs -0 shasum -a 256
+          } > dist/manifest.txt
+
+      - name: Upload Swift package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CFFmpeg-${{ env.FFMPEG_VERSION }}-swift-package
+          path: dist
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 9

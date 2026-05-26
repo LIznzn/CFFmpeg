@@ -1,5 +1,8 @@
 .DS_Store
 /.build
+/build/
+/dist/
+/Frameworks/
 /Packages
 xcuserdata/
 DerivedData/

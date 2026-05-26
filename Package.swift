@@ -16,8 +16,22 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "CFFmpeg",
-            dependencies: ["libavcodec", "libavfilter","libavformat","libavutil","libswresample","libswscale","libavdevice"],
-            publicHeadersPath: "include"),
+            dependencies: [
+                "libavcodec",
+                "libavfilter",
+                "libavformat",
+                "libavutil",
+                "libswresample",
+                "libswscale",
+                "libavdevice",
+            ],
+            publicHeadersPath: "include",
+            linkerSettings: [
+                .linkedFramework("CoreFoundation"),
+                .linkedFramework("CoreGraphics"),
+                .linkedFramework("CoreText"),
+                .linkedLibrary("c++"),
+            ]),
         .binaryTarget(
             name: "libavcodec",
             path: "Frameworks/libavcodec.xcframework"),
@@ -39,8 +53,5 @@ let package = Package(
         .binaryTarget(
             name: "libavdevice",
             path: "Frameworks/libavdevice.xcframework"),
-        .testTarget(
-            name: "CFFmpegTests",
-            dependencies: ["CFFmpeg"]),
     ]
 )
