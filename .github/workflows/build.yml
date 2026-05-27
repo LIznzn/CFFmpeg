@@ -46,6 +46,7 @@ jobs:
       FREETYPE_VERSION: ${{ github.event.inputs.freetype_version || '2.14.3' }}
       FRIBIDI_VERSION: ${{ github.event.inputs.fribidi_version || '1.0.16' }}
       HARFBUZZ_VERSION: ${{ github.event.inputs.harfbuzz_version || '14.2.0' }}
+      DEPLOYMENT_TARGET_TVOS: "17.0"
       HOMEBREW_NO_ANALYTICS: "1"
       HOMEBREW_NO_AUTO_UPDATE: "1"
 
@@ -87,6 +88,26 @@ jobs:
             plutil -lint "dist/Frameworks/${library}.xcframework/Info.plist"
           done
           swift package dump-package --package-path dist >/dev/null
+
+      - name: Verify libavdevice tvOS slices
+        run: |
+          info="dist/Frameworks/libavdevice.xcframework/Info.plist"
+          test -f "$info"
+
+          for identifier in \
+            "macos-arm64_x86_64" \
+            "ios-arm64" \
+            "ios-arm64_x86_64-simulator" \
+            "tvos-arm64" \
+            "tvos-arm64_x86_64-simulator"; do
+            if ! plutil -p "$info" | grep -q "\"$identifier\""; then
+              echo "missing libavdevice slice: $identifier" >&2
+              plutil -p "$info" >&2
+              exit 1
+            fi
+          done
+
+          swift package dump-package --package-path dist | grep -q '"name" : "libavdevice"'
 
       - name: Create artifact manifest
         run: |

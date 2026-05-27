@@ -350,10 +350,10 @@ build_ffmpeg() {
 
   case "$platform" in
     iPhoneOS|iPhoneSimulator)
-      configure_flags+=(--disable-audiotoolbox)
+      configure_flags+=(--disable-audiotoolbox --enable-avdevice)
       ;;
-    AppleTVOS|AppleTVSimulator)
-      configure_flags+=(--disable-avdevice)
+    MacOSX|AppleTVOS|AppleTVSimulator)
+      configure_flags+=(--enable-avdevice)
       ;;
   esac
 
@@ -452,13 +452,6 @@ headers_path() {
 }
 
 platform_supports_library() {
-  local platform="$1"
-  local lib="$2"
-
-  if [ "$lib" = "libavdevice" ] && { [ "$platform" = "AppleTVOS" ] || [ "$platform" = "AppleTVSimulator" ]; }; then
-    return 1
-  fi
-
   return 0
 }
 
