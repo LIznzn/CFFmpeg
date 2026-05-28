@@ -7,6 +7,7 @@ LIBASS_VERSION="${LIBASS_VERSION:-0.17.4}"
 FREETYPE_VERSION="${FREETYPE_VERSION:-2.14.3}"
 FRIBIDI_VERSION="${FRIBIDI_VERSION:-1.0.16}"
 HARFBUZZ_VERSION="${HARFBUZZ_VERSION:-14.2.0}"
+LIBUNIBREAK_VERSION="${LIBUNIBREAK_VERSION:-7.0}"
 
 DEPLOYMENT_TARGET_IOS="${DEPLOYMENT_TARGET_IOS:-15.0}"
 DEPLOYMENT_TARGET_TVOS="${DEPLOYMENT_TARGET_TVOS:-17.0}"
@@ -65,6 +66,24 @@ download_source() {
   tar -xJf "$archive" -C "$source_dir" --strip-components=1
 }
 
+download_gzip_source() {
+  local name="$1"
+  local version="$2"
+  local url="$3"
+  local source_dir="$SOURCES_DIR/$name-$version"
+  local archive="$SOURCES_DIR/$name-$version.tar.gz"
+
+  if [ -d "$source_dir" ]; then
+    return
+  fi
+
+  mkdir -p "$SOURCES_DIR"
+  echo "downloading $name $version"
+  curl -L --fail "$url" -o "$archive"
+  mkdir -p "$source_dir"
+  tar -xzf "$archive" -C "$source_dir" --strip-components=1
+}
+
 download_freetype_source() {
   local version="$1"
   local source_dir="$SOURCES_DIR/freetype-$version"
@@ -94,6 +113,7 @@ download_sources() {
   download_freetype_source "$FREETYPE_VERSION"
   download_source "fribidi" "$FRIBIDI_VERSION" "https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
   download_source "harfbuzz" "$HARFBUZZ_VERSION" "https://github.com/harfbuzz/harfbuzz/releases/download/$HARFBUZZ_VERSION/harfbuzz-$HARFBUZZ_VERSION.tar.xz"
+  download_gzip_source "libunibreak" "$LIBUNIBREAK_VERSION" "https://github.com/adah1972/libunibreak/releases/download/libunibreak_${LIBUNIBREAK_VERSION//./_}/libunibreak-$LIBUNIBREAK_VERSION.tar.gz"
 }
 
 sdk_name() {
@@ -287,9 +307,45 @@ build_harfbuzz() {
     -Dutilities=disabled
 }
 
+build_libunibreak() {
+  local platform="$1"
+  local arch="$2"
+  local prefix="$3"
+  local source="$SOURCES_DIR/libunibreak-$LIBUNIBREAK_VERSION"
+  local build="$WORK_DIR/$platform-$arch/libunibreak"
+  local sdk
+  local sdkroot
+  local cflags
+  local cc
+
+  sdk="$(sdk_name "$platform")"
+  sdkroot="$(xcrun --sdk "$sdk" --show-sdk-path)"
+  cflags="-arch $arch $(deployment_flag "$platform") -isysroot $sdkroot"
+  cc="xcrun --sdk $sdk clang"
+
+  rm -rf "$build"
+  mkdir -p "$build"
+  pushd "$build" >/dev/null
+  env \
+    CC="$cc" \
+    AR="$(xcrun --sdk "$sdk" --find ar)" \
+    RANLIB="$(xcrun --sdk "$sdk" --find ranlib)" \
+    CFLAGS="$cflags" \
+    LDFLAGS="$cflags" \
+    "$source/configure" \
+      --host="$(host_for_arch "$arch")" \
+      --prefix="$prefix" \
+      --disable-shared \
+      --enable-static
+  make -j"$JOBS"
+  make install
+  popd >/dev/null
+}
+
 build_libass() {
   build_meson_project \
     "libass" "$1" "$2" "$3" "$SOURCES_DIR/libass-$LIBASS_VERSION" \
+    -Dlibunibreak=enabled \
     -Dfontconfig=disabled \
     -Dcoretext=enabled \
     -Dtest=disabled \
@@ -319,7 +375,7 @@ build_ffmpeg() {
   cc="xcrun -sdk $sdk clang"
   cflags="-arch $arch $(deployment_flag "$platform") -isysroot $sdkroot -I$prefix/include -I$prefix/include/freetype2"
   ldflags="-arch $arch $(deployment_flag "$platform") -isysroot $sdkroot -L$prefix/lib"
-  extra_ldflags="$ldflags -lass -lfreetype -lfribidi -lharfbuzz -lc++ -framework CoreText -framework CoreFoundation -framework CoreGraphics"
+  extra_ldflags="$ldflags -lass -lfreetype -lfribidi -lharfbuzz -lunibreak -lc++ -framework CoreText -framework CoreFoundation -framework CoreGraphics"
 
   if command -v gas-preprocessor.pl >/dev/null 2>&1; then
     if [ "$arch" = "x86_64" ]; then
@@ -387,7 +443,8 @@ embed_subtitle_dependencies_into_avfilter() {
     "$prefix/lib/libass.a" \
     "$prefix/lib/libfreetype.a" \
     "$prefix/lib/libfribidi.a" \
-    "$prefix/lib/libharfbuzz.a"
+    "$prefix/lib/libharfbuzz.a" \
+    "$prefix/lib/libunibreak.a"
 
   mv "$output" "$prefix/lib/libavfilter.a"
 }
@@ -404,6 +461,7 @@ build_arch() {
   build_freetype "$platform" "$arch" "$prefix"
   build_fribidi "$platform" "$arch" "$prefix"
   build_harfbuzz "$platform" "$arch" "$prefix"
+  build_libunibreak "$platform" "$arch" "$prefix"
   build_libass "$platform" "$arch" "$prefix"
   build_ffmpeg "$platform" "$arch" "$prefix"
   embed_subtitle_dependencies_into_avfilter "$platform" "$arch" "$prefix"
