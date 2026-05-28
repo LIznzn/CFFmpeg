@@ -1,3 +1,1 @@
-//CFFmpeg.c
-
-
+// CFFmpeg module placeholder.
